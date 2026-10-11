@@ -11,7 +11,7 @@ Heirloom
 https://ogharka.github.io/heirloom/
 
 **Contract on Arc mainnet**
-https://explorer.arc.io/address/[contract address]
+https://explorer.arc.io/address/0x2e7707D2723B14bD5cfA5766C11b198EE84E4aC9
 
 **Public repo**
 https://github.com/ogharka/heirloom

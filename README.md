@@ -11,7 +11,7 @@ Every year, crypto is lost because the only person who held the keys dies or bec
 No custodian, no lawyer, and no seed phrase to hand over.
 
 - **Live app:** `https://ogharka.github.io/heirloom/`
-- **Contract on Arc mainnet:** `<contract address>` ([explorer](https://explorer.arc.io))
+- **Contract on Arc mainnet:** [`0x2e7707D2723B14bD5cfA5766C11b198EE84E4aC9`](https://explorer.arc.io/address/0x2e7707D2723B14bD5cfA5766C11b198EE84E4aC9)
 
 ## Why Arc
 
