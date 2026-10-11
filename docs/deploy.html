@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://rpc.mainnet.arc.io; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Deploy Heirloom</title>
+  <link href="https://fonts.googleapis.com/css2?family=Gloock&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="top"><a class="mark" href="./">Heirloom</a></header>
+    <section class="deploy">
+      <h1>Deploy the Heirloom contract</h1>
+      <p>This puts the Heirloom contract on Arc mainnet from your browser wallet. You do it once.</p>
+      <ol>
+        <li>Use a <strong>fresh wallet</strong> that holds only a few USDC on Arc, not your main wallet.</li>
+        <li>Click deploy. Your wallet will show a contract deployment costing well under 1 USDC in gas, with nothing sent to any other address.</li>
+        <li>Approve it. The page shows your contract address when Arc confirms it.</li>
+      </ol>
+      <p class="banner">Heirloom never asks for your seed phrase or private key, and neither does anyone legitimate. If anything does, close the page.</p>
+      <p class="deploy-action"><button class="btn" id="deploy">Deploy to Arc mainnet</button></p>
+      <div id="log" aria-live="polite"></div>
+    </section>
+  </div>
+  <script type="module" src="deploy.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+out/
+cache/
+lib/
+broadcast/
+node_modules/
+.DS_Store
+
+# Never commit secrets
+.env
+.env.*
+*.key
+*.pem
+*keystore*
+*.secret
+mnemonic*
+seed*

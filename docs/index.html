@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://rpc.mainnet.arc.io https://rpc.testnet.arc.io; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Heirloom — USDC inheritance vaults on Arc</title>
+  <meta name="description" content="Lock USDC for your family. Check in now and then. If you go quiet, your heirs can claim their share. Built on Arc.">
+  <link href="https://fonts.googleapis.com/css2?family=Gloock&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%237b2d3a'/%3E%3Cpath d='M10 20c3-1 4-4 6-8 2 4 3 7 6 8' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="mark" href="./">
+        <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="var(--seal)"/><path d="M10 20c3-1 4-4 6-8 2 4 3 7 6 8" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>
+        Heirloom
+      </a>
+      <button class="btn" id="connect">Connect wallet</button>
+    </header>
+
+    <section class="hero">
+      <h1>If you go quiet, your USDC goes home.</h1>
+      <p>Heirloom is an inheritance vault on Arc. Lock USDC for the people you choose and check in now and then. If you stop checking in, each heir can claim their share. No lawyer, no custodian, and no seed phrase to pass on.</p>
+      <ol class="steps">
+        <li><b>Lock USDC</b>Name your heirs and how much each one gets.</li>
+        <li><b>Check in</b>One tap resets the timer. You can withdraw any time.</li>
+        <li><b>Heirs claim</b>Miss the window and each heir claims their share.</li>
+      </ol>
+      <div id="network-banner"></div>
+    </section>
+
+    <section class="stats" aria-label="Live contract stats">
+      <div><strong id="stat-vaults">–</strong>vaults created</div>
+      <div><strong id="stat-locked">–</strong>USDC held in vaults</div>
+      <div><strong id="stat-network">Arc</strong><span id="stat-contract">contract</span></div>
+    </section>
+
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="mine" aria-selected="true">My vaults</button>
+      <button role="tab" data-tab="heir" aria-selected="false">Left to me</button>
+      <button role="tab" data-tab="new" aria-selected="false">New vault</button>
+      <button role="tab" data-tab="lookup" aria-selected="false">Look up a vault</button>
+    </nav>
+
+    <main class="panel" id="panel" aria-live="polite"></main>
+  </div>
+
+  <footer>
+    <div class="wrap">
+      Heirloom is an open-source proof of concept running on Arc mainnet. The contract is unaudited, so only lock amounts you're comfortable testing with.
+      <span id="footer-links"></span>
+    </div>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
