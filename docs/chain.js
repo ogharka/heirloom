@@ -89,6 +89,11 @@ export async function connectWallet({ pick = false } = {}) {
   return { account, wallet };
 }
 
+// Wallet client for a specific account the wallet already reported to us.
+export function walletFor(account) {
+  return createWalletClient({ account, chain: CHAIN, transport: custom(window.ethereum) });
+}
+
 // Ask the wallet to forget this site. Not every wallet supports it; the app
 // forgets the account either way.
 export async function disconnectWallet() {

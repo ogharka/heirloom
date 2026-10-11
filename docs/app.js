@@ -2,7 +2,7 @@ import { parseUnits, formatUnits, isAddress, getAddress } from "./vendor/viem-2.
 import { HEIRLOOM_ABI } from "./contract.js";
 import {
   CHAIN, NETWORK, CONTRACT, EXPLORER, publicClient, walletReader,
-  connectWallet, disconnectWallet, feeOverrides, shortAddr, friendlyError, hasWallet,
+  connectWallet, disconnectWallet, walletFor, feeOverrides, shortAddr, friendlyError, hasWallet,
 } from "./chain.js";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -51,8 +51,22 @@ function toast(html, isErr = false, ms = 6000) {
   t.innerHTML = html;
   document.body.append(t);
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.remove(), ms);
+  toastTimer = setTimeout(() => {
+    t.classList.add("leaving");
+    t.addEventListener("animationend", () => t.remove(), { once: true });
+    setTimeout(() => t.remove(), 400);
+  }, ms);
 }
+
+// Small inline icons for the wallet menu (stroke icons, inherit color).
+const icon = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICONS = {
+  copy: icon('<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>'),
+  ext: icon('<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>'),
+  swap: icon('<path d="M7 7h12l-3-3"/><path d="M17 17H5l3 3"/>'),
+  out: icon('<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l5-5-5-5"/><path d="M15 12H4"/>'),
+  chev: '<svg class="chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M3 4.5l3 3 3-3"/></svg>',
+};
 
 const read = (functionName, args = []) =>
   state.reader.readContract({ address: CONTRACT, abi: HEIRLOOM_ABI, functionName, args });
@@ -81,82 +95,183 @@ async function write(functionName, args, value, doneMsg, btn) {
 }
 
 // ---------- wallet ----------
+const connectBtn = $("#connect");
+
+function paintWallet() {
+  if (state.account) {
+    connectBtn.className = "btn sm connected";
+    connectBtn.innerHTML = `<span class="dot" aria-hidden="true"></span><span>${shortAddr(state.account)}</span>${ICONS.chev}`;
+    connectBtn.setAttribute("aria-haspopup", "menu");
+    connectBtn.setAttribute("aria-expanded", String(menu.classList.contains("open")));
+    connectBtn.setAttribute("aria-label", `Wallet ${state.account}. Open wallet menu`);
+  } else {
+    connectBtn.className = "btn sm";
+    connectBtn.textContent = "Connect wallet";
+    connectBtn.removeAttribute("aria-haspopup");
+    connectBtn.removeAttribute("aria-expanded");
+    connectBtn.removeAttribute("aria-label");
+    closeMenu();
+  }
+}
+
+function useAccount(account, wallet) {
+  state.account = getAddress(account);
+  state.wallet = wallet;
+  state.reader = walletReader();
+  paintWallet();
+}
+
+function clearAccount() {
+  state.account = null;
+  state.wallet = null;
+  state.reader = publicReaderOk ? publicClient : state.reader;
+  paintWallet();
+}
+
+let connecting = false;
 async function connect(pick = true) {
+  if (connecting) return;
+  connecting = true;
   try {
     const { account, wallet } = await connectWallet({ pick });
-    state.account = getAddress(account);
-    state.wallet = wallet;
-    state.reader = walletReader();
-    $("#connect").textContent = shortAddr(state.account);
-    $("#connect").setAttribute("aria-expanded", "false");
+    useAccount(account, wallet);
     await refresh();
   } catch (e) {
     toast(esc(friendlyError(e)), true);
     throw e;
+  } finally {
+    connecting = false;
   }
 }
 
 async function disconnect() {
   closeMenu();
+  ignoreNextEmpty = true;
   await disconnectWallet();
-  state.account = null;
-  state.wallet = null;
-  state.reader = publicClient;
-  $("#connect").textContent = "Connect wallet";
-  $("#connect").removeAttribute("aria-expanded");
+  clearAccount();
   toast("Disconnected. Heirloom no longer sees your wallet.");
   await refresh();
 }
 
-// Small menu under the address button: switch account or disconnect.
+// Wallet menu under the address chip.
 const menu = document.createElement("div");
 menu.className = "wallet-menu";
 menu.id = "wallet-menu";
-menu.hidden = true;
-menu.innerHTML = `<p class="hint" id="wallet-menu-addr"></p>
-  <button type="button" class="btn quiet" data-menu="switch">Switch account</button>
-  <button type="button" class="btn quiet" data-menu="disconnect">Disconnect</button>`;
-$("header.top").append(menu);
+menu.setAttribute("role", "menu");
+menu.innerHTML = `<div class="who"><small>Connected on ${esc(CHAIN.name)}</small><span id="wallet-menu-addr"></span></div>
+  <button type="button" class="menu-item" role="menuitem" data-menu="copy">${ICONS.copy}<span>Copy address</span></button>
+  <a class="menu-item" role="menuitem" id="menu-explorer" target="_blank" rel="noopener noreferrer">${ICONS.ext}<span>View on explorer</span></a>
+  <button type="button" class="menu-item" role="menuitem" data-menu="switch">${ICONS.swap}<span>Switch account</span></button>
+  <button type="button" class="menu-item danger" role="menuitem" data-menu="disconnect">${ICONS.out}<span>Disconnect</span></button>`;
+$(".bar-inner").append(menu);
 
 function openMenu() {
-  $("#wallet-menu-addr").textContent = `Connected: ${state.account}`;
-  menu.hidden = false;
-  $("#connect").setAttribute("aria-expanded", "true");
-  menu.querySelector("button").focus();
+  $("#wallet-menu-addr").textContent = state.account;
+  $("#menu-explorer").href = `${EXPLORER}/address/${state.account}`;
+  menu.classList.add("open");
+  connectBtn.setAttribute("aria-expanded", "true");
+  menu.querySelector(".menu-item").focus({ preventScroll: true });
 }
 function closeMenu() {
-  menu.hidden = true;
-  if (state.account) $("#connect").setAttribute("aria-expanded", "false");
+  menu.classList.remove("open");
+  if (state.account) connectBtn.setAttribute("aria-expanded", "false");
 }
 
-$("#connect").setAttribute("aria-controls", "wallet-menu");
-$("#connect").addEventListener("click", (e) => {
+connectBtn.setAttribute("aria-controls", "wallet-menu");
+connectBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   if (!state.account) return connect(true).catch(() => {});
-  menu.hidden ? openMenu() : closeMenu();
+  menu.classList.contains("open") ? closeMenu() : openMenu();
 });
-menu.addEventListener("click", (e) => {
+menu.addEventListener("click", async (e) => {
   e.stopPropagation();
-  const act = e.target.closest("button")?.dataset.menu;
+  const item = e.target.closest(".menu-item");
+  if (!item) return;
+  const act = item.dataset.menu;
+  if (act === "copy") {
+    try { await navigator.clipboard.writeText(state.account); toast("Address copied. Check the first and last characters when you paste it."); }
+    catch { toast("Couldn't copy. Select the address in the menu and copy it by hand.", true); }
+    closeMenu();
+  }
   if (act === "switch") { closeMenu(); connect(true).catch(() => {}); }
   if (act === "disconnect") disconnect();
+  if (!act) closeMenu(); // explorer link
 });
-document.addEventListener("click", () => { if (!menu.hidden) closeMenu(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { closeMenu(); $("#connect").focus(); } });
+document.addEventListener("click", () => closeMenu());
+document.addEventListener("keydown", (e) => {
+  if (!menu.classList.contains("open")) return;
+  const items = [...menu.querySelectorAll(".menu-item")];
+  const i = items.indexOf(document.activeElement);
+  if (e.key === "Escape") { closeMenu(); connectBtn.focus(); }
+  if (e.key === "ArrowDown") { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  if (e.key === "ArrowUp") { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+});
 
+// React to changes made inside the wallet, without reloading the page.
+let ignoreNextEmpty = false;
+function setNetworkPill(ok) {
+  const pill = $("#net-pill");
+  pill.classList.toggle("warn", !ok);
+  $("#net-name").textContent = ok ? CHAIN.name : `Wrong network`;
+  pill.title = ok ? `Connected to ${CHAIN.name}` : `Switch your wallet to ${CHAIN.name} (chain ${CHAIN.id})`;
+}
 if (hasWallet()) {
-  window.ethereum.on?.("accountsChanged", () => location.reload());
-  window.ethereum.on?.("chainChanged", () => location.reload());
+  window.ethereum.on?.("accountsChanged", async (accounts) => {
+    if (!accounts || !accounts.length) {
+      if (state.account && !ignoreNextEmpty) toast("Your wallet disconnected from Heirloom.");
+      ignoreNextEmpty = false;
+      clearAccount();
+      return refresh();
+    }
+    if (same(accounts[0], state.account)) return;
+    if (!state.account && !connecting) return; // not connected here; ignore
+    useAccount(accounts[0], walletFor(accounts[0]));
+    toast(`Switched to ${shortAddr(state.account)}.`);
+    refresh();
+  });
+  window.ethereum.on?.("chainChanged", (hex) => {
+    const ok = parseInt(hex, 16) === CHAIN.id;
+    setNetworkPill(ok);
+    if (!ok && state.account) toast(`Your wallet left ${CHAIN.name}. Switch back to use Heirloom.`, true);
+    if (ok && state.account) refresh();
+  });
+}
+
+// Reconnect quietly after a reload if this site is already approved (no popup).
+async function restoreSession() {
+  if (!hasWallet()) return;
+  try {
+    const accounts = await window.ethereum.request({ method: "eth_accounts" });
+    if (!accounts || !accounts.length) return;
+    const chain = parseInt(await window.ethereum.request({ method: "eth_chainId" }), 16);
+    setNetworkPill(chain === CHAIN.id);
+    if (chain !== CHAIN.id) return;
+    const { account, wallet } = await connectWallet({ pick: false });
+    useAccount(account, wallet);
+  } catch {}
 }
 
 // ---------- tabs ----------
-document.querySelectorAll("nav.tabs button").forEach((b) =>
-  b.addEventListener("click", () => {
-    document.querySelectorAll("nav.tabs button").forEach((x) => x.setAttribute("aria-selected", x === b));
-    state.tab = b.dataset.tab;
-    render();
-  })
-);
+const tabs = $("nav.tabs");
+const indicator = document.createElement("span");
+indicator.className = "indicator";
+indicator.setAttribute("aria-hidden", "true");
+tabs.append(indicator);
+function moveIndicator() {
+  const b = tabs.querySelector('[aria-selected="true"]');
+  if (!b) return;
+  indicator.style.width = `${b.offsetWidth}px`;
+  indicator.style.transform = `translateX(${b.offsetLeft}px)`;
+}
+function selectTab(name) {
+  tabs.querySelectorAll("button").forEach((x) => x.setAttribute("aria-selected", String(x.dataset.tab === name)));
+  state.tab = name;
+  moveIndicator();
+  render();
+}
+tabs.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => selectTab(b.dataset.tab)));
+addEventListener("resize", moveIndicator);
+document.fonts?.ready.then(moveIndicator);
 
 // ---------- views ----------
 async function loadVault(id) {
@@ -235,6 +350,13 @@ function vaultHtml(v, role) {
   </article>`;
 }
 
+function skeleton(n = 1) {
+  return Array.from({ length: n }, () => `<div class="skeleton" aria-hidden="true">
+    <div class="ring shimmer"></div>
+    <div class="lines"><div class="bar w60 shimmer"></div><div class="bar w40 shimmer"></div><div class="bar big shimmer"></div><div class="bar w80 shimmer"></div><div class="bar w60 shimmer"></div></div>
+  </div>`).join("") + `<span class="visually-hidden">Loading…</span>`;
+}
+
 function needWallet(msg) {
   panel.innerHTML = `<div class="empty"><p>${msg}</p><button class="btn" id="cta-connect">Connect wallet</button></div>`;
   $("#cta-connect").addEventListener("click", () => connect().catch(() => {}));
@@ -246,11 +368,11 @@ function notDeployed() {
 
 async function renderMine() {
   if (!state.account) return needWallet("Connect your wallet to see the vaults you own.");
-  panel.innerHTML = `<p class="empty">Loading your vaults…</p>`;
+  panel.innerHTML = skeleton(1);
   const ids = await read("vaultsOf", [state.account]);
   if (!ids.length) {
     panel.innerHTML = `<div class="empty"><p>You don't have a vault yet. Create one to put USDC aside for the people you choose.</p><button class="btn" id="go-new">Create a vault</button></div>`;
-    $("#go-new").addEventListener("click", () => document.querySelector('[data-tab="new"]').click());
+    $("#go-new").addEventListener("click", () => selectTab("new"));
     return;
   }
   const vaults = await Promise.all([...ids].reverse().map(loadVault));
@@ -259,7 +381,7 @@ async function renderMine() {
 
 async function renderHeir() {
   if (!state.account) return needWallet("Connect your wallet to see vaults that name you as an heir.");
-  panel.innerHTML = `<p class="empty">Looking for vaults that name you…</p>`;
+  panel.innerHTML = skeleton(1);
   const raw = await read("vaultsAsHeir", [state.account]);
   // Anyone can name any address as an heir, so cap how many we load (newest first)
   // to keep a spammed address from slowing the page down.
@@ -334,7 +456,7 @@ function renderNew() {
     try { value = parseUnits(String(fd.get("amount") || "0"), 18); } catch { return toast("Enter the amount as a number, like 25 or 25.50.", true); }
     try {
       await write("createVault", [String(fd.get("name") || "").trim(), heirs.map((a) => getAddress(a)), bps, BigInt(fd.get("interval"))], value, "Vault created.", $("#create-btn"));
-      document.querySelector('[data-tab="mine"]').click();
+      selectTab("mine");
     } catch {}
   });
 }
@@ -347,7 +469,7 @@ function renderLookup(prefill = "") {
   </div>`;
   const run = async (id) => {
     const out = $("#lookup-out");
-    out.innerHTML = `<p class="hint">Loading vault ${id}…</p>`;
+    out.innerHTML = skeleton(1);
     try {
       const v = await loadVault(id);
       const role = same(v.vault.owner, state.account) ? "owner" : v.heirs.some((h) => same(h.account, state.account)) ? "heir" : "viewer";
@@ -407,33 +529,56 @@ function tick() {
 setInterval(tick, 1000);
 
 // ---------- stats + boot ----------
-async function stats() {
+// Prefer Arc's public RPC for reads; if the browser can't reach it, fall back
+// to the connected wallet's Arc connection.
+let publicReaderOk = true;
+async function checkPublicReader() {
   try {
-    const [count, bal] = await Promise.all([read("vaultCount"), state.reader.getBalance({ address: CONTRACT })]);
-    $("#stat-vaults").textContent = Number(count).toLocaleString();
-    $("#stat-locked").textContent = usdc(bal);
+    await Promise.race([publicClient.getChainId(), new Promise((_, r) => setTimeout(() => r(new Error("timeout")), 6000))]);
+    publicReaderOk = true;
   } catch {
-    $("#stat-vaults").textContent = "–";
+    publicReaderOk = false;
   }
 }
 
+async function stats() {
+  const v = $("#stat-vaults"), l = $("#stat-locked");
+  if (v.textContent === "–") { v.classList.add("loading", "shimmer"); l.classList.add("loading", "shimmer"); }
+  try {
+    const [count, bal] = await Promise.all([read("vaultCount"), state.reader.getBalance({ address: CONTRACT })]);
+    v.textContent = Number(count).toLocaleString();
+    l.textContent = usdc(bal);
+  } catch {
+    v.textContent = "–";
+    l.textContent = "–";
+  } finally {
+    v.classList.remove("loading", "shimmer"); l.classList.remove("loading", "shimmer");
+  }
+}
+
+let renderSeq = 0;
 async function render() {
   if (!CONTRACT) return notDeployed();
+  const seq = ++renderSeq;
+  panel.classList.remove("enter");
   try {
     if (state.tab === "mine") await renderMine();
     if (state.tab === "heir") await renderHeir();
     if (state.tab === "new") state.account ? renderNew() : needWallet("Connect your wallet to create a vault.");
     if (state.tab === "lookup") renderLookup(new URLSearchParams(location.search).get("vault") ?? "");
   } catch (e) {
-    panel.innerHTML = `<div class="empty"><p>Couldn't reach Arc: ${esc(friendlyError(e))}</p><p class="hint">Connecting your wallet usually fixes this, since reads then go through your wallet's Arc connection.</p></div>`;
+    if (seq !== renderSeq) return;
+    panel.innerHTML = `<div class="empty"><p>Couldn't reach Arc right now.</p><p class="hint">${state.account ? "Check that your wallet is on Arc, then try again." : "Connect your wallet and Heirloom will read through your wallet's Arc connection."}</p><button class="btn quiet" id="retry">Try again</button></div>`;
+    $("#retry").addEventListener("click", () => refresh());
   }
+  if (seq === renderSeq) { void panel.offsetWidth; panel.classList.add("enter"); }
 }
 
 async function refresh() {
   await Promise.all([render(), stats()]);
 }
 
-(function boot() {
+(async function boot() {
   $("#stat-network").textContent = CHAIN.name;
   if (CONTRACT) {
     $("#stat-contract").innerHTML = `<a href="${EXPLORER}/address/${CONTRACT}" target="_blank" rel="noopener noreferrer">contract ${shortAddr(CONTRACT)}</a>`;
@@ -442,9 +587,12 @@ async function refresh() {
   if (NETWORK === "testnet") {
     $("#network-banner").innerHTML = `<p class="banner">You're on Arc Testnet. Get free test USDC from <a href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer">faucet.circle.com</a>.</p>`;
   }
-  if (new URLSearchParams(location.search).has("vault")) {
-    state.tab = "lookup";
-    document.querySelectorAll("nav.tabs button").forEach((x) => x.setAttribute("aria-selected", x.dataset.tab === "lookup"));
-  }
+  const startTab = new URLSearchParams(location.search).has("vault") ? "lookup" : "mine";
+  tabs.querySelectorAll("button").forEach((x) => x.setAttribute("aria-selected", String(x.dataset.tab === startTab)));
+  state.tab = startTab;
+  moveIndicator();
+  paintWallet();
+  panel.innerHTML = skeleton(1);
+  await Promise.all([checkPublicReader(), restoreSession()]);
   refresh();
 })();
