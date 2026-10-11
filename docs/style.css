@@ -166,3 +166,14 @@ footer { border-top: 1px solid var(--line); padding: 1.5rem 0 3rem; font-size: .
 .result code { font-size: 1rem; font-weight: 600; }
 .lookup-hint { margin-top: 0; }
 .lookup-out { margin-top: 1.5rem; }
+
+/* Wallet menu */
+header.top { position: relative; }
+.wallet-menu {
+  position: absolute; right: 0; top: calc(100% - .5rem); z-index: 5;
+  background: var(--paper-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: .9rem; display: grid; gap: .5rem; min-width: 15rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,.18);
+}
+.wallet-menu[hidden] { display: none; }
+.wallet-menu p { margin: 0 0 .25rem; word-break: break-all; }

@@ -2,7 +2,7 @@ import { parseUnits, formatUnits, isAddress, getAddress } from "./vendor/viem-2.
 import { HEIRLOOM_ABI } from "./contract.js";
 import {
   CHAIN, NETWORK, CONTRACT, EXPLORER, publicClient, walletReader,
-  connectWallet, feeOverrides, shortAddr, friendlyError, hasWallet,
+  connectWallet, disconnectWallet, feeOverrides, shortAddr, friendlyError, hasWallet,
 } from "./chain.js";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -58,7 +58,7 @@ const read = (functionName, args = []) =>
   state.reader.readContract({ address: CONTRACT, abi: HEIRLOOM_ABI, functionName, args });
 
 async function write(functionName, args, value, doneMsg, btn) {
-  if (!state.wallet) await connect();
+  if (!state.wallet) await connect(true);
   const label = btn?.textContent;
   if (btn) { btn.disabled = true; btn.textContent = "Confirm in wallet…"; }
   try {
@@ -81,20 +81,69 @@ async function write(functionName, args, value, doneMsg, btn) {
 }
 
 // ---------- wallet ----------
-async function connect() {
+async function connect(pick = true) {
   try {
-    const { account, wallet } = await connectWallet();
+    const { account, wallet } = await connectWallet({ pick });
     state.account = getAddress(account);
     state.wallet = wallet;
     state.reader = walletReader();
     $("#connect").textContent = shortAddr(state.account);
+    $("#connect").setAttribute("aria-expanded", "false");
     await refresh();
   } catch (e) {
     toast(esc(friendlyError(e)), true);
     throw e;
   }
 }
-$("#connect").addEventListener("click", () => connect().catch(() => {}));
+
+async function disconnect() {
+  closeMenu();
+  await disconnectWallet();
+  state.account = null;
+  state.wallet = null;
+  state.reader = publicClient;
+  $("#connect").textContent = "Connect wallet";
+  $("#connect").removeAttribute("aria-expanded");
+  toast("Disconnected. Heirloom no longer sees your wallet.");
+  await refresh();
+}
+
+// Small menu under the address button: switch account or disconnect.
+const menu = document.createElement("div");
+menu.className = "wallet-menu";
+menu.id = "wallet-menu";
+menu.hidden = true;
+menu.innerHTML = `<p class="hint" id="wallet-menu-addr"></p>
+  <button type="button" class="btn quiet" data-menu="switch">Switch account</button>
+  <button type="button" class="btn quiet" data-menu="disconnect">Disconnect</button>`;
+$("header.top").append(menu);
+
+function openMenu() {
+  $("#wallet-menu-addr").textContent = `Connected: ${state.account}`;
+  menu.hidden = false;
+  $("#connect").setAttribute("aria-expanded", "true");
+  menu.querySelector("button").focus();
+}
+function closeMenu() {
+  menu.hidden = true;
+  if (state.account) $("#connect").setAttribute("aria-expanded", "false");
+}
+
+$("#connect").setAttribute("aria-controls", "wallet-menu");
+$("#connect").addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (!state.account) return connect(true).catch(() => {});
+  menu.hidden ? openMenu() : closeMenu();
+});
+menu.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const act = e.target.closest("button")?.dataset.menu;
+  if (act === "switch") { closeMenu(); connect(true).catch(() => {}); }
+  if (act === "disconnect") disconnect();
+});
+document.addEventListener("click", () => { if (!menu.hidden) closeMenu(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !menu.hidden) { closeMenu(); $("#connect").focus(); } });
+
 if (hasWallet()) {
   window.ethereum.on?.("accountsChanged", () => location.reload());
   window.ethereum.on?.("chainChanged", () => location.reload());

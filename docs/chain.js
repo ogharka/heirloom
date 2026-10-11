@@ -69,12 +69,35 @@ export async function ensureChain() {
   }
 }
 
-export async function connectWallet() {
+// pick=true asks the wallet to show its account chooser, even if this site
+// was approved before, so the person always sees which account they connect.
+export async function connectWallet({ pick = false } = {}) {
   if (!hasWallet()) throw new Error("No browser wallet found. Install MetaMask or Rabby, then reload this page.");
+  if (pick) {
+    try {
+      await window.ethereum.request({ method: "wallet_requestPermissions", params: [{ eth_accounts: {} }] });
+    } catch (err) {
+      if (err && err.code === 4001) throw err; // cancelled in the wallet
+      // Wallet doesn't support the chooser; fall through to the normal request.
+    }
+  }
   const [account] = await window.ethereum.request({ method: "eth_requestAccounts" });
   await ensureChain();
+  const current = parseInt(await window.ethereum.request({ method: "eth_chainId" }), 16);
+  if (current !== CHAIN.id) throw new Error(`Your wallet is on chain ${current}, not ${CHAIN.name} (${CHAIN.id}). Switch networks and try again.`);
   const wallet = createWalletClient({ account, chain: CHAIN, transport: custom(window.ethereum) });
   return { account, wallet };
+}
+
+// Ask the wallet to forget this site. Not every wallet supports it; the app
+// forgets the account either way.
+export async function disconnectWallet() {
+  if (!hasWallet()) return;
+  try {
+    await window.ethereum.request({ method: "wallet_revokePermissions", params: [{ eth_accounts: {} }] });
+  } catch {
+    // Older wallets: the person can remove the site from the wallet's own settings.
+  }
 }
 
 // Fee overrides that respect Arc's 20 gwei floor.
