@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://rpc.mainnet.arc.io; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://rpc.mainnet.arc.io https://rpc.testnet.arc.io; base-uri 'none'; form-action 'none'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
   <title>Deploy Heirloom</title>
   <link href="https://fonts.googleapis.com/css2?family=Gloock&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -21,7 +21,12 @@
         <li>Approve it. The page shows your contract address when Arc confirms it.</li>
       </ol>
       <p class="banner">Heirloom never asks for your seed phrase or private key, and neither does anyone legitimate. If anything does, close the page.</p>
-      <p class="deploy-action"><button class="btn" id="deploy">Deploy to Arc mainnet</button></p>
+      <fieldset class="net-choice">
+        <legend class="hint">Network</legend>
+        <label><input type="radio" name="net" value="mainnet" checked> Arc mainnet</label>
+        <label><input type="radio" name="net" value="testnet"> Arc testnet (free test USDC from faucet.circle.com)</label>
+      </fieldset>
+      <p class="deploy-action"><button class="btn" id="deploy">Deploy contract</button></p>
       <div id="log" aria-live="polite"></div>
     </section>
   </div>

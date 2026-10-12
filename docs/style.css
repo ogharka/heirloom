@@ -300,3 +300,7 @@ select {
   background-repeat: no-repeat; background-position: right .85rem center; background-size: .85rem;
 }
 .vault > div > :last-child, .vault table.heirs:last-child { margin-bottom: 0; }
+
+.net-choice { border: 0; padding: 0; margin: 1.5rem 0 0; display: grid; gap: .5rem; }
+.net-choice label { display: flex; gap: .55rem; align-items: center; font-size: .95rem; }
+.net-choice input { width: auto; height: auto; }

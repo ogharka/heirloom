@@ -1,6 +1,8 @@
 import { createWalletClient, createPublicClient, custom } from "./vendor/viem-2.57.4.js";
 import { HEIRLOOM_ABI, HEIRLOOM_BYTECODE } from "./contract.js";
-import { ARC, MIN_FEE, friendlyError } from "./chain.js";
+import { ARC as ARC_MAINNET, ARC_TESTNET, MIN_FEE, friendlyError } from "./chain.js";
+
+let ARC = ARC_MAINNET;
 
 const log = document.getElementById("log");
 
@@ -45,7 +47,7 @@ async function switchToArc() {
   }
   // Refuse to continue unless the wallet is really on Arc mainnet.
   const current = parseInt(await window.ethereum.request({ method: "eth_chainId" }), 16);
-  if (current !== ARC.id) throw new Error(`Your wallet is on chain ${current}, not Arc mainnet (5042). Switch to Arc and try again.`);
+  if (current !== ARC.id) throw new Error(`Your wallet is on chain ${current}, not ${ARC.name} (${ARC.id}). Switch networks and try again.`);
 }
 
 document.getElementById("deploy").addEventListener("click", async (ev) => {
@@ -55,11 +57,12 @@ document.getElementById("deploy").addEventListener("click", async (ev) => {
     say("No browser wallet found. Install MetaMask or Rabby from their official sites, then reload this page.");
     return;
   }
+  ARC = document.querySelector('[name="net"]:checked')?.value === "testnet" ? ARC_TESTNET : ARC_MAINNET;
   btn.disabled = true;
   try {
     const [account] = await window.ethereum.request({ method: "eth_requestAccounts" });
     await switchToArc();
-    say(`Connected ${account} on Arc mainnet.`);
+    say(`Connected ${account} on ${ARC.name}.`);
 
     const wallet = createWalletClient({ account, chain: ARC, transport: custom(window.ethereum) });
     const reader = createPublicClient({ chain: ARC, transport: custom(window.ethereum) });
@@ -86,7 +89,7 @@ document.getElementById("deploy").addEventListener("click", async (ev) => {
     box.className = "result";
     log.append(box);
     const line = (t) => { const p = document.createElement("p"); p.textContent = t; box.append(p); return p; };
-    line("Heirloom is live on Arc mainnet. Your contract address:");
+    line(`Heirloom is live on ${ARC.name}. Your contract address:`);
     const code = document.createElement("code");
     code.textContent = addr;
     line("").append(code);
@@ -94,7 +97,7 @@ document.getElementById("deploy").addEventListener("click", async (ev) => {
     const a1 = document.createElement("a");
     a1.href = `${explorer}/address/${addr}`; a1.textContent = "Open on explorer"; a1.target = "_blank"; a1.rel = "noopener noreferrer";
     const a2 = document.createElement("a");
-    a2.href = `./?contract=${addr}`; a2.textContent = "Open the app with this contract";
+    a2.href = ARC.testnet ? `./?net=testnet&contract=${addr}` : `./?contract=${addr}`; a2.textContent = "Open the app with this contract";
     links.append(a1, document.createTextNode("  ·  "), a2);
     line("Next: put this address in docs/config.js on GitHub (step 6 in the guide). A contract address is public and safe to share.").className = "hint";
   } catch (e) {
